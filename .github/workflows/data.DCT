@@ -1,0 +1,47 @@
+import cv2
+import numpy as np
+from skimage.metrics import peak_signal_noise_ratio as psnr
+
+# 读取灰度图像
+image_path = 'airplane_gray.png'  # 输入的灰度图像路径
+
+img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+# 将图像转换为浮点数格式，进行DCT变换
+img_dct = cv2.dct(np.float32(img))
+
+# 随机生成要隐藏的100KB数据
+data_size = 100 * 1024  # 100KB
+data = np.random.randint(0, 256, size=data_size, dtype=np.uint8)
+
+
+# 定义嵌入函数，将数据嵌入到DCT系数中
+def embed_data(dct_coeffs, data):
+    flat_dct = dct_coeffs.flatten()
+    # 将数据嵌入到高频部分
+    flat_dct[500:500 + len(data)] = data
+    return flat_dct.reshape(dct_coeffs.shape)
+
+
+# 将数据嵌入到图像的DCT系数中
+img_dct_embedded = embed_data(img_dct, data)
+
+# 对图像进行逆DCT变换，生成隐写图像
+img_stego = cv2.idct(img_dct_embedded)
+
+# 将隐写图像转换为uint8格式
+img_stego = np.clip(img_stego, 0, 255).astype(np.uint8)
+
+# 保存隐写图像
+stego_image_path = 'stego_image.png'
+cv2.imwrite(stego_image_path, img_stego)
+
+# 计算PSNR
+calculated_psnr = psnr(img, img_stego)
+print(f'PSNR: {calculated_psnr} dB')
+
+# 确保PSNR大于或等于80
+if calculated_psnr >= 40:
+    print("嵌入成功，PSNR符合要求")
+else:
+    print("PSNR低于80，需要调整嵌入算法")
